@@ -1,0 +1,83 @@
+version: "3.2"
+services:
+  php:
+    build: './php/'
+    networks:
+      - backend
+    volumes:
+      - ./public_html/:/var/www/html/
+  apache:
+    build: './apache/'
+    depends_on:
+      - php
+      - mysql
+    networks:
+      - frontend
+      - backend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./public_html/:/var/www/html/
+  mysql:
+    image: mysql:8.0
+    networks:
+      - backend
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+  rsync-volume:
+    image: stefda/rsync
+    volumes:
+      - /var/www/app/src
+    environment:
+      VOLUME: /var/www/app
+      USER: www-data
+      GROUP: www-data
+    ports:
+      - 10873:873
+  postfix:
+    image: juanluisbaptiste/postfix:3.3.1
+    expose:
+      - "25"
+    env_file:
+      - .env
+    restart: always
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+  openssh-server:
+    image: linuxserver/openssh-server
+    container_name: openssh-server
+    hostname: openssh-server #optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - PUBLIC_KEY=yourpublickey #optional
+      - PUBLIC_KEY_FILE=/path/to/file #optional
+      - SUDO_ACCESS=false #optional
+      - PASSWORD_ACCESS=false #optional
+      - USER_PASSWORD=password #optional
+      - USER_PASSWORD_FILE=/path/to/file #optional
+      - USER_NAME=linuxserver.io #optional
+    volumes:
+      - /path/to/appdata/config:/config
+    ports:
+      - 2222:2222
+    restart: unless-stopped
+  chrony:
+    image: alvistack/chrony
+  openssl:
+    build: './openssl/'
+  cron:
+    image: dayreiner/cronie-cronsul:latest
+    container_name: cron
+    network_mode: host
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/opt/cron/cron-jobs:/cron-jobs"
+  logrotate:
+    build: './logrotate/'
+  imagemagick:
+    build: './imagemagick/'
+networks:
+  frontend:
+  backend:
